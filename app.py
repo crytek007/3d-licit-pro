@@ -104,39 +104,12 @@ def tavolsag_szamitas(varos1, varos2):
     c = 2 * math.asin(math.sqrt(a))
     return round(c * 6371, 1)
 
-vevok = {
-    "1": {
-        "nev": "Kovács Péter",
-        "email": "peter@vevo.hu",
-        "megye": "Budapest",
-        "varos": "Budapest",
-        "ceg": "Magánszemély"
-    }
-}
-
-nyomtatosok = {
-    "1": {
-        "nev": "Tarpai 3D Print", 
-        "email": "tarpai@3dprint.hu", 
-        "megye": "Pest vármegye",
-        "varos": "Gyál",
-        "forma": "Kft.",
-        "gep": "Bambu Lab X1C & P1S (Multi-color)",
-        "szint": "Újonc 🔰", 
-        "ertekeles": "Még nem értékelték", 
-        "pozitiv_szam": 0,
-        "osszes_ertekeles": 0,
-        "munkak": 0, 
-        "pont": 50,
-        "galeria": [],
-        "velemenyek": []
-    }
-}
-
+vevok = {}
+nyomtatosok = {}
 munkak = []
 munka_szamlalo = 1
-maker_szamlalo = 2
-vevo_szamlalo = 2
+maker_szamlalo = 1
+vevo_szamlalo = 1
 
 KATEGORIAK = [
     "3D Nyomtató alkatrész & Tartozék",
@@ -330,7 +303,8 @@ Kozos_Fejlec = """
             <a href="/dashboard" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">⚙️ Készítői Munkapultom</a>
             <a href="/logout">Kilépés</a>
         {% else %}
-            <a href="/vevo_regisztracio" style="background: #0ea5e9; color: white;">Vásárlói Fiók & Bejelentkezés</a>
+            <a href="/belepes" style="background: #3b82f6; color: white;">Bejelentkezés</a>
+            <a href="/vevo_regisztracio" style="background: #0ea5e9; color: white;">Vásárlói Regisztráció</a>
             <a href="/regisztracio" style="background: #10b981; color: white;">Partner Regisztráció</a>
         {% endif %}
         <a href="/ranglista">🏆 Ranglista</a>
@@ -345,14 +319,15 @@ Vevo_Oldal_HTML = Kozos_Fejlec + """
             Álmaid 3D modellje. <br><span style="color: #38bdf8;">Valóságba ültetve.</span>
         </h1>
         <p style="color: #94a3b8; font-size: 19px; margin-bottom: 40px; line-height: 1.6;">
-            Vásárolni szeretnél? Mutasd meg az elképzelésedet, töltsd fel a nyomtatni kívánt fájlt, és a hazai ipari partnereink szabad árlicit keretében a legjobb árat adják neked.
+            Vásárolni szeretnél? Add meg a részleteket, töltsd fel a modellt és az eredeti hivatkozást, hogy a partnereink pontos árat adhassanak!
         </p>
         <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
             {% if session.get('vevo_id') %}
                 <a href="#kalkulator-doboz" class="btn" style="width: auto; padding: 16px 36px; font-size: 17px; border-radius: 50px;">Új megbízás indítása ↓</a>
                 <a href="/vevo_dashboard" class="btn" style="background: #10b981; width: auto; padding: 16px 36px; font-size: 17px; border-radius: 50px;">Ugrás a Vásárlói Munkapultomra →</a>
             {% else %}
-                <a href="/vevo_regisztracio" class="btn" style="width: auto; padding: 16px 36px; font-size: 17px; border-radius: 50px;">Vásárlói Regisztráció & Belépés →</a>
+                <a href="/belepes" class="btn" style="width: auto; padding: 16px 36px; font-size: 17px; border-radius: 50px;">Bejelentkezés →</a>
+                <a href="/vevo_regisztracio" class="btn" style="background: #10b981; width: auto; padding: 16px 36px; font-size: 17px; border-radius: 50px;">Vásárlói Regisztráció →</a>
             {% endif %}
         </div>
     </div>
@@ -362,40 +337,59 @@ Vevo_Oldal_HTML = Kozos_Fejlec + """
 <div class="container" id="kalkulator-doboz">
     <div style="text-align: center; margin-bottom: 40px;">
         <h2 style="font-size: 32px; font-weight: 800; color: #ffffff; letter-spacing: -1px;">Új Ajánlatkérés Leadása</h2>
-        <p style="color: #94a3b8;">Töltsd fel az STL vagy 3MF fájlt a pontos árhoz, valós idejű óraszámhoz és a licithez.</p>
+        <p style="color: #94a3b8;">Töltsd ki az adatokat és töltsd fel a fájlt. Semmi sem kötelező a néven kívül!</p>
     </div>
 
     <div class="card" style="border-top: 6px solid #0ea5e9;">
-        <label>A projekt neve vagy leírása</label>
-        <input type="text" id="munka-cim" placeholder="Pl.: Egyedi fogaskerék / Prototípus ház">
+        <form action="/uj_munka" method="POST" enctype="multipart/form-data">
+            <label>A projekt neve *</label>
+            <input type="text" name="cim" placeholder="Pl.: Egyedi figurás szobor / Alkatrész" required>
 
-        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 200px;">
-                <label>Darabszám</label>
-                <input type="number" id="munka-db" value="1" min="1">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label>Darabszám</label>
+                    <input type="number" name="db" value="1" min="1">
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label>Kategória</label>
+                    <select name="kategoria" style="background: #0f172a; color: white;">
+                        {% for kat in kategoria_lista %}
+                        <option value="{{ kat }}">{{ kat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-            <div style="flex: 1; min-width: 200px;">
-                <label>Kategória (Modell Típus)</label>
-                <select id="munka-kategoria" style="background: #0f172a; color: white;">
-                    {% for kat in kategoria_lista %}
-                    <option value="{{ kat }}">{{ kat }}</option>
-                    {% endfor %}
-                </select>
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label>Preferált szín / Anyag (Opcionális)</label>
+                    <input type="text" name="szin" placeholder="Pl. Matte Fekete PLA">
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label>Eredeti Modell Hivatkozás / Link (Opcionális)</label>
+                    <input type="url" name="link" placeholder="Pl. https://makerworld.com/... vagy Thingiverse link">
+                </div>
             </div>
-        </div>
 
-        <label>Preferált szín / Anyag</label>
-        <input type="text" id="munka-szin" placeholder="Pl. Matte Fekete PLA">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label>Kitöltés / Infill (Opcionális)</label>
+                    <input type="text" name="infill" placeholder="Pl. 15% Gyroid">
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label>Rétegmagasság (Opcionális)</label>
+                    <input type="text" name="reteg" placeholder="Pl. 0.20 mm Standard">
+                </div>
+            </div>
 
-        <label>3D Modell Fájl (STL / 3MF)</label>
-        <div id="upload-btn" onclick="document.getElementById('file-input').click()" style="border: 2px dashed rgba(56, 189, 248, 0.4); padding: 40px; text-align: center; border-radius: 16px; cursor: pointer; color: #38bdf8; font-weight: 700; background: rgba(14, 165, 233, 0.05);">
-            📁 Kattints ide a 3D fájl feltöltéséhez
-        </div>
-        <input type="file" id="file-input" style="display: none;" accept=".stl,.3mf" onchange="fileKivalasztva()">
-        
-        <div id="status-msg" style="margin-top:20px; font-weight:700; color:#fbbf24; display:none; padding: 14px; background: rgba(251, 191, 36, 0.1); border-radius: 10px;"></div>
-        
-        <button class="btn btn-green" id="submit-btn" style="display:none; margin-top:24px;" onclick="munkatFeltolt()">Megbízás elindítása a Zárt Piacon</button>
+            <label>Egyéb megjegyzés a készítőnek (Opcionális)</label>
+            <textarea name="megjegyzes" placeholder="Írd le, ha van bármilyen extra kérésed..." style="background: #0f172a; color: white; height: 80px;"></textarea>
+
+            <label>3D Modell Fájl (STL / 3MF) (Opcionális, de ajánlott)</label>
+            <input type="file" name="file" accept=".stl,.3mf" style="background: #0f172a; color: white;">
+
+            <button type="submit" class="btn btn-green" style="margin-top:20px;">🚀 Megbízás Beküldése a Piacra</button>
+        </form>
     </div>
 </div>
 {% endif %}
@@ -409,71 +403,60 @@ Vevo_Oldal_HTML = Kozos_Fejlec + """
         {% if session.get('maker_id') %}
             <a href="/dashboard" class="btn btn-green" style="width: auto; padding: 16px 40px; font-size: 17px; border-radius: 50px;">Ugrás a Készítői Munkapultomra →</a>
         {% else %}
-            <a href="/regisztracio" class="btn btn-green" style="width: auto; padding: 16px 40px; font-size: 17px; border-radius: 50px;">Partner Regisztráció / Belépés →</a>
+            <a href="/regisztracio" class="btn btn-green" style="width: auto; padding: 16px 40px; font-size: 17px; border-radius: 50px;">Partner Regisztráció →</a>
         {% endif %}
     </div>
 </div>
+"""
 
-<script>
-    let kivalasztottFajl = null;
-    function fileKivalasztva() {
-        const input = document.getElementById('file-input');
-        if(input.files.length > 0) {
-            kivalasztottFajl = input.files[0];
-            document.getElementById('upload-btn').innerText = "✅ " + kivalasztottFajl.name + " kiválasztva!";
-            document.getElementById('status-msg').style.display = "block";
-            document.getElementById('status-msg').innerText = "⚙️ Szeletelési geometria és valós idejű óraszám számítás folyamatban...";
-            
-            let formData = new FormData();
-            formData.append("file", kivalasztottFajl);
-            
-            fetch('/kalkulal', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
-                if(data.hiba) {
-                    document.getElementById('status-msg').innerText = "❌ Hiba: " + data.hiba;
-                } else {
-                    document.getElementById('status-msg').innerHTML = `✅ Súly: <b>${data.suly}g</b> | Szeletelési Idő: <b>${data.ora} óra</b> | Rendszer Ár: <b>${data.ar} Ft</b>`;
-                    document.getElementById('status-msg').style.color = "#34d399";
-                    window.kalkulaltSuly = data.suly;
-                    window.kalkulaltAr = data.ar;
-                    window.kalkulaltOra = data.ora;
-                    document.getElementById('submit-btn').style.display = "block";
-                }
-            });
-        }
-    }
-    function munkatFeltolt() {
-        const cim = document.getElementById('munka-cim').value;
-        const db = document.getElementById('munka-db').value;
-        const szin = document.getElementById('munka-szin').value;
-        const kategoria = document.getElementById('munka-kategoria').value;
-        if(!cim) { alert("Add meg a projekt nevét!"); return; }
-        
-        let formData = new FormData();
-        formData.append("cim", cim); formData.append("db", db); formData.append("szin", szin || "Alap");
-        formData.append("kategoria", kategoria);
-        formData.append("suly", window.kalkulaltSuly);
-        formData.append("ar", window.kalkulaltAr);
-        formData.append("ora", window.kalkulaltOra);
-        
-        fetch('/uj_munka', { method: 'POST', body: formData }).then(res => res.json()).then(data => { window.location.href = "/vevo_dashboard"; });
-    }
-</script>
+Bejelentkezes_HTML = Kozos_Fejlec + """
+<div class="container" style="max-width: 500px; margin-top: 140px;">
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="font-size: 32px; font-weight: 800; color: #ffffff;">🔑 Bejelentkezés</h1>
+        <p style="color: #94a3b8;">Válaszd ki a fiókod típusát, és add meg az adataidat.</p>
+    </div>
+    <div class="card" style="border-top: 6px solid #3b82f6;">
+        {% if hiba %}
+        <div style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: 700; text-align: center;">
+            {{ hiba }}
+        </div>
+        {% endif %}
+        <form action="/belepes_mentes" method="POST">
+            <label>Fiók Típusa</label>
+            <select name="szerepkor" required style="background: #0f172a; color: white;">
+                <option value="vevo">🛒 Vásárlói Fiók</option>
+                <option value="keszito">⚙️ Készítő / Partner Fiók</option>
+            </select>
+
+            <label>E-mail Cím</label>
+            <input type="email" name="email" placeholder="pelda@email.hu" required>
+
+            <label>Jelszó</label>
+            <input type="password" name="jelszo" placeholder="••••••••" required>
+
+            <button type="submit" class="btn" style="background: #3b82f6;">Bejelentkezés</button>
+        </form>
+        <div style="margin-top: 20px; text-align: center; font-size: 14px; color: #94a3b8;">
+            Még nincs fiókod? <a href="/vevo_regisztracio" style="color: #38bdf8; text-decoration: none; font-weight: 700;">Vásárlói regisztráció</a> vagy <a href="/regisztracio" style="color: #10b981; text-decoration: none; font-weight: 700;">Partner regisztráció</a>
+        </div>
+    </div>
+</div>
 """
 
 Vevo_Regisztracio_HTML = Kozos_Fejlec + """
 <div class="container" style="max-width: 650px; margin-top: 140px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="font-size: 32px; font-weight: 800; color: #ffffff;">🛒 Vásárlói Fiók & Bejelentkezés</h1>
-        <p style="color: #94a3b8;">Válaszd ki a városodat a listából a helyi készítők eléréséhez.</p>
+        <h1 style="font-size: 32px; font-weight: 800; color: #ffffff;">🛒 Vásárlói Regisztráció</h1>
+        <p style="color: #94a3b8;">Hozd létre a vásárlói fiókodat a helyi készítők eléréséhez.</p>
     </div>
     <div class="card" style="border-top: 6px solid #0ea5e9;">
         <form action="/vevo_regisztracio_mentes" method="POST">
             <label>Teljes Név</label>
             <input type="text" name="nev" placeholder="Kovács Péter" required>
-            <label>E-mail Cím (Azonosító)</label>
+            <label>E-mail Cím</label>
             <input type="email" name="email" placeholder="peter@vevo.hu" required>
+            <label>Jelszó</label>
+            <input type="password" name="jelszo" placeholder="••••••••" required>
             <label>Város</label>
             <select name="varos" required style="background: #0f172a; color: white;">
                 {% for v in varos_lista %}
@@ -482,7 +465,7 @@ Vevo_Regisztracio_HTML = Kozos_Fejlec + """
             </select>
             <label>Számlázási név / Cégnév (Opcionális)</label>
             <input type="text" name="ceg" placeholder="Magánszemély vagy Cég">
-            <button type="submit" class="btn">Belépés a Vásárlói Munkapultra</button>
+            <button type="submit" class="btn">Regisztráció & Belépés</button>
         </form>
     </div>
 </div>
@@ -491,15 +474,17 @@ Vevo_Regisztracio_HTML = Kozos_Fejlec + """
 Keszito_Regisztracio_HTML = Kozos_Fejlec + """
 <div class="container" style="max-width: 650px; margin-top: 140px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="font-size: 32px; font-weight: 800; color: #ffffff;">⚙️ Partner Regisztráció & Belépés</h1>
-        <p style="color: #94a3b8;">Válaszd ki a telephelyed szerinti várost a helyi megbízásokhoz.</p>
+        <h1 style="font-size: 32px; font-weight: 800; color: #ffffff;">⚙️ Partner Regisztráció</h1>
+        <p style="color: #94a3b8;">Hozd létre a készítői fiókodat a szabad kapacitásod kitöltéséhez.</p>
     </div>
     <div class="card" style="border-top: 6px solid #10b981;">
         <form action="/regisztracio_mentes" method="POST">
             <label>Cégnév / Márkanév</label>
             <input type="text" name="nev" placeholder="Pl. 3D Print Kft." required>
-            <label>E-mail Cím (Azonosító)</label>
+            <label>E-mail Cím</label>
             <input type="email" name="email" placeholder="info@3dprint.hu" required>
+            <label>Jelszó</label>
+            <input type="password" name="jelszo" placeholder="••••••••" required>
             <label>Város (Telephely városa)</label>
             <select name="varos" required style="background: #0f172a; color: white;">
                 {% for v in varos_lista %}
@@ -510,7 +495,7 @@ Keszito_Regisztracio_HTML = Kozos_Fejlec + """
             <select name="forma" style="background: #0f172a; color: white;"><option>Kft.</option><option>Bt.</option><option>Egyéni Vállalkozó</option></select>
             <label>Géppark Leírása</label>
             <input type="text" name="gep" placeholder="Pl. Bambu Lab X1C" required>
-            <button type="submit" class="btn btn-green">Belépés a Készítői Munkapultra</button>
+            <button type="submit" class="btn btn-green">Partner Regisztráció & Belépés</button>
         </form>
     </div>
 </div>
@@ -548,8 +533,17 @@ Vevo_Dashboard_HTML = Kozos_Fejlec + """
             <div>
                 <span class="badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; margin-bottom: 8px;">{{ munka.kategoria }}</span>
                 <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #ffffff;">{{ munka.cim }}</h3>
-                <p style="color: #94a3b8; font-size: 14px; margin-bottom: 6px;">Mennyiség: <b>{{ munka.db }} db</b> | Súly: <b>{{ munka.suly }}g</b> | Javasolt Ár: <b>{{ munka.min_ar }} Ft</b></p>
-                <p style="color: #38bdf8; font-size: 14px; margin: 0;">⏱️ Szeletelési Idő: <b>{{ munka.ora }} óra</b> | 📅 Várható elkészülés: <b>{{ munka.hatarido }}</b></p>
+                <p style="color: #94a3b8; font-size: 14px; margin-bottom: 6px;">Mennyiség: <b>{{ munka.db }} db</b> | Szín/Anyag: <b>{{ munka.szin }}</b></p>
+                <p style="color: #38bdf8; font-size: 14px; margin-bottom: 4px;">Infill: <b>{{ munka.infill }}</b> | Réteg: <b>{{ munka.reteg }}</b></p>
+                {% if munka.link %}
+                    <p style="margin: 4px 0;"><a href="{{ munka.link }}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 13px;">🔗 Eredeti Modell Link Megtekintése</a></p>
+                {% endif %}
+                {% if munka.megjegyzes %}
+                    <p style="color: #cbd5e1; font-size: 13px; font-style: italic; margin-top: 6px;">Megjegyzés: "{{ munka.megjegyzes }}"</p>
+                {% endif %}
+                {% if munka.fajl_url %}
+                    <p style="margin-top: 8px;"><a href="{{ munka.fajl_url }}" download class="badge" style="background: rgba(56,189,248,0.2); color: #38bdf8; text-decoration: none;">📥 Feltöltött 3D Fájl Letöltése</a></p>
+                {% endif %}
             </div>
             <span class="badge" style="background: rgba(255,255,255,0.1); color: #f8fafc;">{{ munka.statusz }}</span>
         </div>
@@ -663,7 +657,7 @@ Keszito_Dashboard_HTML = Kozos_Fejlec + """
         </div>
     </div>
 
-    <!-- RÉSZLETES ÉS SZEMÉLYRE SZABHATÓ SZŰRŐK -->
+    <!-- SZŰRŐK -->
     <div class="card" style="padding: 20px;">
         <form method="GET" action="/dashboard" style="display: flex; flex-direction: column; gap: 15px;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
@@ -711,8 +705,18 @@ Keszito_Dashboard_HTML = Kozos_Fejlec + """
                 <span class="badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; margin-bottom: 8px;">{{ munka.kategoria }}</span>
                 <h3 style="margin: 0 0 6px 0; font-size: 19px; color: #ffffff;">{{ munka.cim }} ({{ munka.db }} db)</h3>
                 <p style="margin:0 0 6px 0; color:#94a3b8;">Elfogadott áarad: <b style="color: #34d399;">{{ munka.nyertes_ar }} Ft</b> | Státusz: <b>{{ munka.statusz }}</b></p>
-                <p style="color: #38bdf8; font-size: 14px; margin-bottom: 12px;">⏱️ Szeletelési idő: <b>{{ munka.ora }} óra</b> | 📅 Határidő: <b>{{ munka.hatarido }}</b></p>
+                <p style="color: #38bdf8; font-size: 14px; margin-bottom: 6px;">Szín/Anyag: <b>{{ munka.szin }}</b> | Infill: <b>{{ munka.infill }}</b> | Réteg: <b>{{ munka.reteg }}</b></p>
                 
+                {% if munka.link %}
+                    <p style="margin: 4px 0;"><a href="{{ munka.link }}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 13px;">🔗 Eredeti Modell Link Megtekintése</a></p>
+                {% endif %}
+                {% if munka.megjegyzes %}
+                    <p style="color: #cbd5e1; font-size: 13px; font-style: italic; margin-top: 4px;">Megjegyzés: "{{ munka.megjegyzes }}"</p>
+                {% endif %}
+                {% if munka.fajl_url %}
+                    <p style="margin-top: 8px;"><a href="{{ munka.fajl_url }}" download class="badge" style="background: rgba(56,189,248,0.2); color: #38bdf8; text-decoration: none;">📥 3D Modell Fájl Letöltése</a></p>
+                {% endif %}
+
                 <div style="background: rgba(15, 23, 42, 0.6); padding: 15px; border-radius: 12px; margin: 15px 0; border: 1px solid rgba(56, 189, 248, 0.2);">
                     <p style="margin: 0 0 6px 0; color: #38bdf8; font-weight: 700; font-size: 13px;">🛒 Megrendelő Vásárló Publikus Adatai:</p>
                     <p style="margin: 0 0 4px 0; color: #ffffff; font-size: 15px;">Név: <b>{{ munka.vevo_obj.nev }}</b> ({{ munka.vevo_obj.ceg }})</p>
@@ -753,8 +757,17 @@ Keszito_Dashboard_HTML = Kozos_Fejlec + """
                         <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">🚗 ~{{ munka.tavolsag_km }} km</span>
                     </div>
                     <h3 style="margin: 0 0 6px 0; font-size: 19px; color: #ffffff;">{{ munka.cim }}</h3>
-                    <p style="margin:0 0 6px 0; color:#94a3b8; font-size: 14px;">Megrendelő: <b>{{ munka.vevo_obj.nev }}</b> | Darab: <b>{{ munka.db }} db</b> | Súly: <b>{{ munka.suly }} g</b></p>
-                    <p style="color: #38bdf8; font-size: 13px; margin: 0;">Rendszer Ár: <b>{{ munka.min_ar }} Ft</b> | ⏱️ Szeletelési idő: <b>{{ munka.ora }} óra</b></p>
+                    <p style="margin:0 0 6px 0; color:#94a3b8; font-size: 14px;">Megrendelő: <b>{{ munka.vevo_obj.nev }}</b> | Darab: <b>{{ munka.db }} db</b> | Szín: <b>{{ munka.szin }}</b></p>
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0 0 4px 0;">Infill: {{ munka.infill }} | Réteg: {{ munka.reteg }}</p>
+                    {% if munka.link %}
+                        <p style="margin: 4px 0;"><a href="{{ munka.link }}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 13px;">🔗 Eredeti Modell Forrás Link Megtekintése</a></p>
+                    {% endif %}
+                    {% if munka.megjegyzes %}
+                        <p style="color: #cbd5e1; font-size: 12px; font-style: italic; margin-top: 4px;">Megjegyzés: "{{ munka.megjegyzes }}"</p>
+                    {% endif %}
+                    {% if munka.fajl_url %}
+                        <p style="margin-top: 6px;"><a href="{{ munka.fajl_url }}" download class="badge" style="background: rgba(56,189,248,0.2); color: #38bdf8; text-decoration: none;">📥 3D Modell Fájl Letöltése</a></p>
+                    {% endif %}
                 </div>
                 <!-- SZABAD ÁRAS LICIT -->
                 <form action="/licit" method="POST" style="display:flex; gap:12px; background:rgba(15, 23, 42, 0.6); padding:18px; border-radius:16px; border:1px solid rgba(255,255,255,0.08); align-items:center; margin:0;">
@@ -869,6 +882,29 @@ def logout():
     session.pop('maker_id', None)
     return redirect(url_for('vevo_oldal'))
 
+@app.route('/belepes')
+def belepes():
+    return render_template_string(Bejelentkezes_HTML, hiba=None)
+
+@app.route('/belepes_mentes', methods=['POST'])
+def belepes_mentes():
+    szerepkor = request.form.get('szerepkor')
+    email = request.form.get('email')
+    jelszo = request.form.get('jelszo')
+    
+    if szerepkor == 'vevo':
+        vevo_id = next((k for k, v in vevok.items() if v['email'] == email and v.get('jelszo') == jelszo), None)
+        if vevo_id:
+            session['vevo_id'] = vevo_id
+            return redirect(url_for('vevo_dashboard'))
+    else:
+        maker_id = next((k for k, v in nyomtatosok.items() if v['email'] == email and v.get('jelszo') == jelszo), None)
+        if maker_id:
+            session['maker_id'] = maker_id
+            return redirect(url_for('dashboard'))
+            
+    return render_template_string(Bejelentkezes_HTML, hiba="Hibás szerepkör, e-mail cím vagy jelszó!")
+
 @app.route('/vevo_regisztracio')
 def vevo_regisztracio():
     return render_template_string(Vevo_Regisztracio_HTML, varos_lista=sorted(MAGYARORSZAG_TELEPÜLÉSEK.keys()))
@@ -879,17 +915,20 @@ def vevo_regisztracio_mentes():
     email = request.form.get('email')
     varos = request.form.get('varos', 'Budapest')
     megye = MAGYARORSZAG_TELEPÜLÉSEK.get(varos, ("Budapest", 0, 0))[0]
+    jelszo = request.form.get('jelszo', 'titok123')
     
     meglévő = next((k for k, v in vevok.items() if v['email'] == email), None)
     if meglévő:
         session['vevo_id'] = meglévő
         vevok[meglévő]['megye'] = megye
         vevok[meglévő]['varos'] = varos
+        vevok[meglévő]['jelszo'] = jelszo
     else:
         id_str = str(vevo_szamlalo)
         vevok[id_str] = {
             "nev": request.form.get('nev'),
             "email": email,
+            "jelszo": jelszo,
             "megye": megye,
             "varos": varos,
             "ceg": request.form.get('ceg') or "Magánszemély"
@@ -903,7 +942,7 @@ def vevo_regisztracio_mentes():
 def vevo_dashboard():
     vevo_id = session.get('vevo_id')
     if not vevo_id or vevo_id not in vevok:
-        return redirect(url_for('vevo_regisztracio'))
+        return redirect(url_for('belepes'))
     
     vevo = vevok[vevo_id]
     sajat_munkak = [m for m in munkak if m['email'] == vevo['email']]
@@ -940,17 +979,20 @@ def regisztracio_mentes():
     email = request.form.get('email')
     varos = request.form.get('varos', 'Budapest')
     megye = MAGYARORSZAG_TELEPÜLÉSEK.get(varos, ("Budapest", 0, 0))[0]
+    jelszo = request.form.get('jelszo', 'titok123')
     
     meglátó = next((k for k, v in nyomtatosok.items() if v['email'] == email), None)
     if meglátó:
         session['maker_id'] = meglátó
         nyomtatosok[meglátó]['megye'] = megye
         nyomtatosok[meglátó]['varos'] = varos
+        nyomtatosok[meglátó]['jelszo'] = jelszo
     else:
         id_str = str(maker_szamlalo)
         nyomtatosok[id_str] = {
             "nev": request.form.get('nev'),
             "email": email,
+            "jelszo": jelszo,
             "megye": megye,
             "varos": varos,
             "forma": request.form.get('forma'),
@@ -973,7 +1015,7 @@ def regisztracio_mentes():
 def dashboard():
     maker_id = session.get('maker_id')
     if not maker_id or maker_id not in nyomtatosok:
-        return redirect(url_for('regisztracio'))
+        return redirect(url_for('belepes'))
     
     maker = nyomtatosok[maker_id]
     kategoria_szuro = request.args.get('kategoria', '')
@@ -1008,87 +1050,47 @@ def ranglista():
     sorted_makers = sorted(nyomtatosok.items(), key=lambda x: x[1]['pont'], reverse=True)
     return render_template_string(Ranglista_HTML, sorted_nyomtatosok=sorted_makers)
 
-@app.route('/kalkulal', methods=['POST'])
-def kalkulal():
-    if 'file' not in request.files or request.files['file'].filename == '': return jsonify({'hiba': 'Nincs fájl!'})
-    file = request.files['file']
-    temp = "temp_" + file.filename
-    file.save(temp)
-    try:
-        bambu_pla_ar_kg = 11500
-        suruseg_g_cm3 = 1.24
-        gep_rezsi_orankent = 120
-        alapdij = 1500
-        padlo_ar = 2000
-
-        mesh = trimesh.load(temp)
-        if isinstance(mesh, trimesh.Scene): mesh = trimesh.util.concatenate(tuple(mesh.geometry.values()))
-        
-        # Normális méretarány ellenőrzés (ha a trimesh méterben mérné, átváltjuk milliméterbe)
-        extents = mesh.extents
-        if max(extents) < 5.0:  # Ha 5-nél kisebb, akkor valószínűleg méterben van
-            mesh.apply_scale(1000.0)
-
-        vol, area = abs(mesh.volume), mesh.area
-        fal = area * 1.2
-        valos_terfogat = vol if fal >= vol else fal + ((vol - fal) * 0.2)
-        
-        suly_g = (valos_terfogat / 1000.0) * suruseg_g_cm3
-        
-        # VALÓSÚGHŰ BAMBU STUDIO IDŐSZÁMÍTÁS (cm3 / óra teljesítmény alapján)
-        # Egy Bambu X1C / P1S átlagosan ~12-16 cm3 anyagot nyomtat ki óránként összetett, támaszos modellnél
-        nyomtatasi_teljesitmeny_cm3_per_ora = 14.5
-        alap_ora = (valos_terfogat / 1000.0) / nyomtatasi_teljesitmeny_cm3_per_ora
-        
-        # Komplexitási és támasz korrekció (a bonyolultabb geometriákhoz, mint a szobrok)
-        komplexitas_szorzo = max(1.0, (area / max(vol, 1.0)) * 0.35)
-        vegso_ora = max(1.0, round(alap_ora * komplexitas_szorzo, 1))
-
-        # Ha a modell kifejezetten nagy vagy nehéz (pl. a 195g-os macska), akkor pontosan igazodjon a 16+ órához
-        if suly_g > 150:
-            vegso_ora = max(vegso_ora, round(suly_g / 11.5, 1))
-
-        anyagkoltseg = suly_g * (bambu_pla_ar_kg / 1000.0)
-        rezsikoltseg = vegso_ora * gep_rezsi_orankent
-        vegso_ar = max(alapdij + anyagkoltseg + rezsikoltseg, padlo_ar)
-        
-        os.remove(temp)
-        return jsonify({
-            'suly': round(suly_g, 1), 
-            'ar': round(vegso_ar, 0),
-            'ora': vegso_ora
-        })
-    except Exception as e:
-        if os.path.exists(temp): os.remove(temp)
-        return jsonify({'hiba': str(e)})
-
 @app.route('/uj_munka', methods=['POST'])
 def uj_munka():
     global munka_szamlalo
     vevo_id = session.get('vevo_id')
     if not vevo_id or vevo_id not in vevok:
-        return jsonify({'hiba': 'Nincs bejelentkezve vásárló!'}), 403
+        return redirect(url_for('belepes'))
         
     vevo = vevok[vevo_id]
     db = int(request.form.get('db', 1))
-    alap_suly = float(request.form.get('suly'))
-    alap_ar = int(float(request.form.get('ar')))
-    becsult_ora = float(request.form.get('ora', 5.0))
     kategoria = request.form.get('kategoria', 'Egyéb')
+    szin = request.form.get('szin', 'Nem megadott')
+    link = request.form.get('link', '')
+    infill = request.form.get('infill', 'Alapértelmezett')
+    reteg = request.form.get('reteg', '0.20 mm')
+    megjegyzes = request.form.get('megjegyzes', '')
     
-    hatarido_datum = (datetime.datetime.now() + datetime.timedelta(hours=becsult_ora * db + 24)).strftime("%Y-%m-%d %H:%M")
+    fajl_url = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file.filename != '':
+            fajl_nev = f"modell_{munka_szamlalo}_{file.filename}"
+            fajl_utvonal = os.path.join(app.config['UPLOAD_FOLDER'], fajl_nev)
+            file.save(fajl_utvonal)
+            fajl_url = f"/{fajl_utvonal}"
     
     munkak.append({
         "id": munka_szamlalo,
         "cim": request.form.get('cim'),
         "db": db,
-        "szin": request.form.get('szin'),
+        "szin": szin,
         "kategoria": kategoria,
+        "link": link,
+        "infill": infill,
+        "reteg": reteg,
+        "megjegyzes": megjegyzes,
+        "fajl_url": fajl_url,
         "email": vevo['email'],
-        "suly": round(alap_suly * db, 1),
-        "min_ar": alap_ar * db,
-        "ora": round(becsult_ora * db, 1),
-        "hatarido": hatarido_datum,
+        "suly": "Fájl alapján",
+        "min_ar": 0,
+        "ora": "Szeletelés szerint",
+        "hatarido": "Egyeztetés alatt",
         "licitek": [],
         "nyertes": None,
         "nyertes_ar": 0,
@@ -1096,12 +1098,12 @@ def uj_munka():
         "galeria_kep": None
     })
     munka_szamlalo += 1
-    return jsonify({'status': 'ok'})
+    return redirect(url_for('vevo_dashboard'))
 
 @app.route('/licit', methods=['POST'])
 def licit():
     maker_id = session.get('maker_id')
-    if not maker_id: return redirect(url_for('regisztracio'))
+    if not maker_id: return redirect(url_for('belepes'))
     
     munka_id = int(request.form.get('munka_id'))
     ar = int(request.form.get('ar'))
@@ -1129,7 +1131,7 @@ def licit():
 @app.route('/elfogad', methods=['POST'])
 def elfogad():
     vevo_id = session.get('vevo_id')
-    if not vevo_id: return redirect(url_for('vevo_regisztracio'))
+    if not vevo_id: return redirect(url_for('belepes'))
     
     munka_id = int(request.form.get('munka_id'))
     maker_id = request.form.get('maker_id')
@@ -1149,7 +1151,7 @@ def elfogad():
 @app.route('/teljesit', methods=['POST'])
 def teljesit():
     maker_id = session.get('maker_id')
-    if not maker_id: return redirect(url_for('regisztracio'))
+    if not maker_id: return redirect(url_for('belepes'))
     
     munka_id = int(request.form.get('munka_id'))
     kep_url = None
@@ -1180,7 +1182,7 @@ def teljesit():
 @app.route('/minosites_beküldés', methods=['POST'])
 def minosites_beküldés():
     vevo_id = session.get('vevo_id')
-    if not vevo_id: return redirect(url_for('vevo_regisztracio'))
+    if not vevo_id: return redirect(url_for('belepes'))
     
     munka_id = int(request.form.get('munka_id'))
     tipus = request.form.get('tipus')
